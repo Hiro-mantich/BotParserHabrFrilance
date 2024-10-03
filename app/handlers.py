@@ -7,6 +7,7 @@ import asyncio
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
+from pyexpat.errors import messages
 
 import app.keyboards as kb
 import app.database.requests as rq
@@ -17,7 +18,7 @@ import app.database.requests as rq
 
 router = Router()
 
-@router.message(CommandStart())
+@router.message(CommandStart()) #Команда старт
 async def cmd_start(message:Message):
     tg_id = message.from_user.id
     user = await rq.get_user_tg_id(tg_id)
@@ -30,16 +31,19 @@ async def cmd_start(message:Message):
 
 @router.message(F.text == 'GO!')
 async def start_parsing(message:Message):
-    stop_event = asyncio.Event()
-    parser_task = asyncio.create_task(start_parser(stop_event))
     await message.answer('Start parsing for orders')
+    while True:
+        await start_parser(message)
+        await asyncio.sleep(120)
+    #await message.answer('Больше заказов пока нет.')
+
 
 @router.message(F.text == 'Stop')
 async def stop_parsing(message:Message):
       #stop_event.set()
       await message.answer('Stop parsing for orders')
 
-class LogInForm(StatesGroup):
+class LogInForm(StatesGroup): #клас авторизации
     entering_login = State()
     entering_password = State()
 
@@ -53,21 +57,28 @@ async def log_in(message: Message, state: FSMContext):
 async def log_in_login(message: Message, state: FSMContext):
     login = message.text
     await state.update_data(login = login)
-    await message.answer('Введи пароль ->')
-    await state.set_state(LogInForm.entering_password)
+    if await rq.get_user(login) is not None:
+        user = await rq.get_user(login)
+        await message.answer("Тот ли ты, за кого себя выдаёшь? Подтверди это ПАРОЛЕМ!")
+        #await message.answer('Введи пароль ->')
+        await state.set_state(LogInForm.entering_password)
+    else:
+        await message.answer("Я таких не знаю! Упёрдывай, приблуда!")
+        await state.clear()
+
 
 @router.message(LogInForm.entering_password)
 async def log_in_password(message: Message, state: FSMContext):
     user_data = await state.get_data()
     login = user_data.get('login')
     password = message.text
+    tg_id = message.from_user.id
+    await rq.set_user_tg_id(login,tg_id)
+
 
     await message.answer(f'Авторизация завершена!',
                          reply_markup=kb.btns_main_menu)
     await state.clear()
-
-
-
 
 
 class SignInForm(StatesGroup):

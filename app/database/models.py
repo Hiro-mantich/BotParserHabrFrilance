@@ -29,6 +29,6 @@ class User(Base):
     login: Mapped[str] = mapped_column(String(10))
     password: Mapped[str] = mapped_column(String(10))
 
-async def async_main():
+async def async_main(): #функция создания таблицы при её отсутсвии
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

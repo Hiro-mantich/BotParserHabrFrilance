@@ -17,11 +17,7 @@ async def insert_order_in_db(title_order,price_order,link_order,description_orde
             session.add(new_order)
             # Транзакция будет зафиксирована автоматически при выходе из блока `async with session.begin()`
 
-async def log_out(tg_id):
-    async with async_session() as session:
-        await session.scalar(select(User).where(User.tg_id ==tg_id ))
-        User.tg_id = None
-        await session.commit()
+
 
 async def get_all_orders():
     async with async_session() as session:
@@ -41,7 +37,28 @@ async def sign_in_user(tg_user_id,user_login,user_password):
             await session.commit()
             # Транзакция будет зафиксирована автоматически при выходе из блока `async with session.begin()`
 
+async def log_out(tg_id):
+    async with async_session() as session:
+        user = await session.scalar(select(User).where(User.tg_id ==tg_id )) #получение обекта User
+        if user:
+            user.tg_id = None #если он есть , устанавливаю Нан на его tg id
+            session.add(user) #добавляю обратно объект в таблицу
+            await session.commit() #сохраняю изменения
+
+async def get_user(login):
+    async with async_session() as session:
+       return await session.scalar(select(User).where(User.login == login))  # получение обекта User и возвращение его
+
 async def get_user_tg_id(tg_id):
     async with async_session() as session:
         return await session.scalar(select(User).where(User.tg_id == tg_id ))
+
+async def set_user_tg_id(login,tg_id):
+    async with async_session() as session:
+        user = await session.scalar(select(User).where(User.login == login ))
+        user.tg_id = tg_id
+        session.add(user)  # добавляю обратно объект в таблицу
+        await session.commit()  # сохраняю изменения
+
+
 
